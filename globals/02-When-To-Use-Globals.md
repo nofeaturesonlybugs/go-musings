@@ -9,9 +9,9 @@ It's also worth noting that the opposite of `immutable` is `mutable` -- if somet
 ## State, Dependencies, and Immutability  
 Previously when discussing why not to use globals our attention was drawn to *state* and *dependencies* -- which are the two things most novice or beginner programmers assign to globals.  *State* and *dependencies* are frequently not `immutable` -- rather they are typically `mutable`.
 
-When either *state* or *dependencies* are stored globally you run the risk of distinct objects sharing state and behaving erroneously.  Object `A` might update a value in global state that causes object `B` to start creating errors; or if a global dependency is altered, replaced, or swapped by one area of your code another area may still be tied to the old dependency.
+When either *state* or *dependencies* are stored globally you run the risk of distinct objects sharing state and behaving erroneously.  Object `A` might update a value in global state that causes object `B` to start creating errors; or if a global dependency is altered, replaced, or swapped by one area of your code another area may still be tied to the old dependency and create bugs that are hard to track and isolate.
 
-When programmers say, *"Don't use globals!"* what they're really saying is *"Don't use globals for state and dependencies."*  However it's the `mutable` nature of *state* and *dependencies* that makes them ill-suited as global values.
+When programmers say, *"Don't use globals!"* what they're really saying is *"Don't use globals for state or dependencies."*  However it's the `mutable` nature of *state* and *dependencies* that makes them ill-suited as global values.
 
 Therefore when programmers say, *"Don't use globals!"* what they're really, really saying is *"Don't use globals for `mutable` data."*
 
@@ -42,7 +42,7 @@ func IsHttpPrefix(str string) (bool, error) {
 
 At first glance this is a good function, yes?  We're taking advantage of Go's ability to return multiple values from a function and we're passing the `error` upwards for the caller to handle.  However the only reason this function will even return an error is if our regexp is invalid and can not compile.  The particular regular expression is a string literal -- `"(?i)^http.*"` is hard-coded into our program and will **never** change while the program is executing.  Further there is no mechanism by which a unit test or other test software will alter the regular expression.  Therefore this regular expression represents `immutable` data.
 
-On a performance note the regular expression is compiled every time `IsHttpPrefix` is called.  Compiling a regular expression is not free -- it costs some CPU and memory -- so constantly recompiling the same `immutable` expression is wasted resources.  *Performance tuning and micro-optimizations is a whole discussion unto itself; when in doubt write benchmarks and make decisions based off qualitative results.*
+On a performance note the regular expression is compiled every time `IsHttpPrefix` is called.  Compiling a regular expression is not free -- it costs some CPU and memory -- so constantly recompiling the same `immutable` expression is wasted resources.  *Performance tuning and micro-optimizations are topics unto themselves; when in doubt write benchmarks and make decisions from qualitative measurements.*
 
 Regarding the `immutability` of the regexp and the wasted resources this is a good candidate for using a global.
 
@@ -172,7 +172,7 @@ func main() {
 ## Exported Globals vs Private Globals  
 Any time you decide to use a global variable you should consider carefully if it should be exported or not.  The regular expression example is a good case for making the global unexported or private; there's low likelihood anything outside the package will need to see it to understand how the package works.
 
-On the other hand the example demonstrating default values or configuration is a good case for exporting the global value.  If the default global is declared as `var defaultConfig = ...` then it is not visible outside the package, does not show up in documentation, and users of your package will need to dig in your source code to find what the default configuration values.  Naming it `DefaultConfig` ensures it shows up in documentation and is easier to find at a glance.
+On the other hand the example demonstrating default values or configuration is a good case for exporting the global value.  If the default global is declared as `var defaultConfig = ...` then it is not visible outside the package, does not show up in documentation, and users of your package will need to dig in your source code to find the default configuration values.  Naming it `DefaultConfig` ensures it shows up in documentation and is easier to find at a glance.
 
 ## Being a Good Samaritan  
 Now let us address the large elephant in the room.  
@@ -196,4 +196,4 @@ Which can be summarized as:
 However:
 > 3. You *may* use globals for `immutable` data...  
 
-...as long as you remember it's not really `immutable` and we're all just sort of pretending it is.
+...as long as you remember *it's not really immutable* and we're all just sort of pretending it is.
