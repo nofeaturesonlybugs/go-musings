@@ -20,7 +20,7 @@ var (
 func main() {
     DB = ... // Connect to the database
     Ctx = ... // Create a context of sorts, perhaps with a timeout or attached to ^C
-    Conf = ... // Load a configuration fron env vars, file, etc.
+    Conf = ... // Load a configuration from env vars, file, etc.
     // At this point our code would branch into one of the functions below.
 }
 
@@ -39,9 +39,9 @@ func Foo() {
 Global variables usually represent one of two things: *state* or a *dependency*.
 
 ### State  
-*State* represents some data or value that is used to drive a program's logic.  For example **bytesRemaining** might be a stateful value while reading a file.  Or **hadError** could be a piece of state for an operation that has many steps.  *State* changes over time and periodically the current state is inspected to make decisions.
+*State* represents some data or value that is used to drive a program's logic.  For example `bytesRemaining` might be a stateful value while reading a file.  Or `hadError` could be a piece of state for an operation that has many steps.  *State* changes over time and periodically the current state is inspected to make decisions.
 
-In our small example above `Ctx` could considered a stateful value that is used to indicate if the program is canceled or not.
+In our small example above `Ctx` could be considered a stateful value that is used to indicate if the program is canceled or not.
 
 ### Dependencies  
 *Dependencies* are entities or services a software *depends* on in order to function.  In order to communicate with a database you need a `*sql.DB` thus making it a dependency.
@@ -87,8 +87,8 @@ func main() {
     // At this point our code would branch into one of the functions below.
 }
 
-// Both Bar() and Foo() are methods on *T by changing the functions to receivers on *T.
-//  Change instances of DB, Ctx, and Conf to t.DB, t.Ctx, and t.Conf to access the fields.
+// Both Bar() and Foo() are methods on *T -- they can access its fields.
+// Change instances of DB, Ctx, and Conf to t.DB, t.Ctx, and t.Conf to access the fields.
 
 func (t *T) Bar() {
     err := t.DB.ExecContext(t.Ctx, "...", t.Conf.Something, t.Conf.SomethingElse)
@@ -105,10 +105,10 @@ func (t *T) Foo() {
 2. Each function is now a method due to having a receiver `func (t *T)`.
 3. References to `Ctx`, `Conf`, and `DB` are changed to `t.Ctx`, `t.Conf`, and `t.DB` in order to use the struct fields rather than globals.
 
-One of the first things you should do when writing a new program is declare your `type T struct` -- usually before `func main()` -- and as your program needs more *state* or *dependencies* declare them as fields in your container.  A side effect of this is nearly *all* of the functions in your `package` *should* be methods on this container or one of the other types in the package.
+One of the first things you should do when writing a new program is declare your `type T struct` -- usually before `func main()` -- and as your program needs more *state* or *dependencies* add them as fields in your container.  In general most of the functions in your package should probably be methods on some type of container.  If you're writing a package with many "free floating" functions then you *may* be making a design mistake unless your package is a library similar to `package strings` or `package math`.
 
 ## Pick a Good Name  
-`T` isn't a very good name for a container -- I've just been using it as a placeholder for now.  However you *should* pick a good name that semantically describes the contained data.  Since this container is in `package main` and `main` always represents a program a better name would be any of the following `Program`, `Application`, `App`, etc.  I like short names where appropriate so let's refactor as `App`:
+`T` isn't a very good name for a container -- I've just been using it as a placeholder for now.  However you *should* pick a good name that semantically describes the contained data.  Since this container is in `package main` and `main` always represents a compiled binary a better name would be any of the following: `Program`, `Application`, `App`, etc.  I like short names where appropriate so let's refactor as `App`:
 
 ```go
 type App struct {
@@ -134,7 +134,7 @@ func (app *App) Foo() {
 }
 ```
 
-Earlier I said one of the first things you should do when writing a program is to create your container -- `type App struct{}` for a `package main`.  But what about other packages?  Well -- do the same thing but name it with the package's context in mind.  If you're creating a `package messaging` then maybe your container should be named `Broker` or `Messenger`; if you're creating a database layer then `Store` or `Storage` might be a good name.
+Earlier I said one of the first things you should do when writing a program is to create your container -- `type App struct{}` for a `package main`.  But what about other packages?  Well -- do the same thing but name it with the package's purpose in mind.  If you're creating a `package messaging` then maybe your container should be named `Broker` or `Messenger`; if you're creating a database layer then `Store` or `Storage` might be a good name.
 
 For example let's presume we're going to refactor our sample program and move `Bar()` and `Foo()` into `package amazing`.
 
@@ -189,7 +189,7 @@ func main() {
 }
 ```
 
-It looks a bit silly to pass the same values into both `App` and `app.Amazing`.  In practicality a larger program will create instances of several different types of containers and each container will need only some or part of the values contained in `App`.
+It looks a bit silly to pass the same values into both `app` and `app.Amazing`.  In practicality a larger program will create instances of several different types of containers and each container will need only some or part of the values contained in `App`.
 
 The key points are:
 1. Use containers to store state and dependencies.
@@ -199,12 +199,14 @@ The key points are:
 ## Testing Revisited  
 Now that we have `package amazing` I want to quickly revisit one of the points I made about globals hurting testability:
 
-> 3. Global variables are an impedence to testing your code with unit tests or integration tests.  A key concept in writing tests is to *swap* or *alter* state and dependencies as part of a test's execution; it's hard to do this when code depends on globals.
+> 3. Global variables are an impedence to testing your code with unit tests or integration tests.  **A key concept in writing tests is to *swap* or *alter* state and dependencies as part of a test's execution;** it's hard to do this when code depends on globals.
 
 Let us presume that `Ctx` is an *optional* field of the `Amazing` type.  In order to test that `package amazing` works with different types of `Ctx` values we might write a small set of tests:
 
 ```go
 package amazing_test
+
+import ... // snipped
 
 func TestAmazing_Ctx(t *testing.T) {
     db := ... // Get a db
@@ -226,7 +228,7 @@ func TestAmazing_Ctx(t *testing.T) {
         // now do stuff with a and test the results
     })
     t.Run("2s deadline", func(t *testing.T) {
-        ctx, cancel := context.WithDeadline(context.Background, 2 * time.Second)
+        ctx, cancel := context.WithDeadline(context.Background(), 2 * time.Second)
         defer cancel()
         a := &amazing.Amazing{
             DB: db,
@@ -238,7 +240,7 @@ func TestAmazing_Ctx(t *testing.T) {
 }
 ```
 
-Each instance of `t.Run(...)` is running a new test where the `Ctx` field of `Amazing` is a different value.  Each test is creating its own instance of `Amazing` and we have a much stronger guarantee that our tests are not interferring with each other.  When a package uses lots of global variables it starts to become unclear in tests just how much of the state should be reset between tests or how one test could start to affect another.  The net effect is your tests become difficult to maintain or they lose their determinism -- you never want your tests to be indeterministic.
+Each instance of `t.Run(...)` is running a new test where the `Ctx` field of `Amazing` is a different value.  Each test is creating its own instance of `Amazing` and we have a much stronger guarantee that our tests are not interferring with each other.  When a package uses lots of global variables it starts to become unclear in tests just how much of the state should be reset between tests or how one test could affect another.  The net effect of globals is your tests become difficult to maintain or they may lose their determinism -- you never want your tests to be indeterministic.
 
 ## Wrapping It Up
 
